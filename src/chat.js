@@ -1,0 +1,135 @@
+// chat.js
+import { Server } from "socket.io";
+
+// Initialize chat server
+export const initChat = (httpServer, allowedOrigins = ["http://localhost:3000"]) => {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+    },
+  });
+
+  console.log("[INFO] Socket.IO chat server initialized");
+
+  let chatGroups = [];
+  let users = {}; // Store online users: userId → socket.id
+
+  const createUniqueId = () => Math.random().toString(36).substring(2, 10);
+
+  io.on("connection", (socket) => {
+    console.log(`[INFO] User connected: ${socket.id}`);
+
+    // ------------------------------
+    // REGISTER USER
+    // ------------------------------
+    socket.on("registerUser", (userId) => {
+      users[userId] = socket.id;
+      console.log(`[INFO] Registered User ${userId} → ${socket.id}`);
+
+      // Broadcast online users to everyone
+      io.emit("onlineUsers", Object.keys(users));
+    });
+
+    // ------------------------------
+    // GET ALL GROUPS
+    // ------------------------------
+    socket.on("getAllGroups", () => {
+      socket.emit("groupList", chatGroups);
+    });
+
+    // ------------------------------
+    // CREATE GROUP
+    // ------------------------------
+    socket.on("createNewGroup", (groupName) => {
+      if (!groupName) return;
+
+      const newGroup = {
+        id: createUniqueId(),
+        name: groupName,
+        messages: [],
+      };
+
+      chatGroups.unshift(newGroup);
+      socket.join(newGroup.name);
+
+      io.emit("groupList", chatGroups);
+    });
+
+    // ------------------------------
+    // FIND GROUP
+    // ------------------------------
+    socket.on("findGroup", (groupId) => {
+      const group = chatGroups.find((g) => g.id === groupId);
+      if (!group) return;
+
+      socket.join(group.name);
+      socket.emit("foundGroup", group.messages);
+    });
+
+    // ------------------------------
+    // GROUP CHAT MESSAGE
+    // ------------------------------
+    socket.on("newChatMessage", (data) => {
+      const { messageText, groupId, sender, timeData } = data;
+
+      const group = chatGroups.find((g) => g.id === groupId);
+      if (!group) return;
+
+      const newMessage = {
+        id: createUniqueId(),
+        text: messageText,
+        sender,
+        time: `${timeData.hr.toString().padStart(2, "0")}:${timeData.mins
+          .toString()
+          .padStart(2, "0")}`,
+      };
+
+      group.messages.push(newMessage);
+
+      io.in(group.name).emit("groupMessage", newMessage);
+      io.emit("groupList", chatGroups);
+    });
+
+    // ------------------------------
+    // PRIVATE ONE-TO-ONE MESSAGE
+    // ------------------------------
+    socket.on("sendMessage", (data) => {
+      const { toUserId, messageText, senderId, time } = data;
+
+      const receiverSocketId = users[toUserId];
+      const message = {
+        id: createUniqueId(),
+        text: messageText,
+        sender: senderId,
+        time,
+      };
+
+      // Send to receiver if online
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("receiveMessage", message);
+      }
+
+      // Also send back to sender
+      socket.emit("receiveMessage", message);
+    });
+
+    // ------------------------------
+    // DISCONNECT
+    // ------------------------------
+    socket.on("disconnect", () => {
+      console.log(`[INFO] User disconnected: ${socket.id}`);
+
+      // Remove user
+      for (const userId in users) {
+        if (users[userId] === socket.id) {
+          delete users[userId];
+          break;
+        }
+      }
+
+      // Update online users
+      io.emit("onlineUsers", Object.keys(users));
+    });
+  });
+};
