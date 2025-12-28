@@ -1,33 +1,55 @@
 // controllers/appointment.controller.js
 import { Appointment } from "../models/appointment.model.js";
-
+import { Slot } from "../models/slots.model.js";
 // Book appointment
 export const bookAppointment = async (req, res) => {
   try {
-    const { patientId, doctorId, date, time, reason } = req.body;
+    const { slotId, patientId, reason } = req.body;
 
-    if (!patientId || !doctorId || !date || !time) {
-      return res.status(400).json({ status: 400, message: "Missing required fields" });
+    if (!slotId || !patientId) {
+      return res.status(400).json({ message: "slotId and patientId are required" });
     }
 
-    const newAppointment = await Appointment.create({
+    // 1. Find slot
+    const slot = await Slot.findById(slotId);
+
+    if (!slot) {
+      return res.status(404).json({ message: "Slot not found" });
+    }
+
+    // 2. Check availability
+    if (slot.status === "booked") {
+      return res.status(400).json({ message: "Slot already booked" });
+    }
+
+    // 3. Create appointment
+    const appointment = await Appointment.create({
       patientId,
-      doctorId,
-      date,
-      time,
-      reason,
+      doctorId: slot.doctorId,
+      date: slot.date,
+      time: slot.time,
+      slotId: slot._id,
+      reason: reason || "",
+      status: "pending",
     });
 
-    res.status(201).json({ status: 201, message: "Appointment booked", appointment: newAppointment });
+    // 4. Mark slot as booked
+    slot.status = "booked";
+    await slot.save();
+
+    res.status(201).json({
+      message: "Appointment booked successfully",
+      appointment,
+    });
   } catch (error) {
-    console.error("Error booking appointment:", error);
-    res.status(500).json({ status: 500, message: "Server error while booking appointment" });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 // Get all appointments (optionally filter by doctor or patient)
 export const getAppointments = async (req, res) => {
-  try {
+ try {
     const { doctorId, patientId } = req.query;
 
     const filter = {};
@@ -50,11 +72,11 @@ export const approveAppointment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const appointment = await Appointment.findByIdAndUpdate(
-      id,
-      { status: "approved" },
-      { new: true }
-    );
+   const appointment = await Appointment.findByIdAndUpdate(
+    req.params.id,
+    { status: "approved" },
+    { new: true }
+  );
 
     if (!appointment) return res.status(404).json({ status: 404, message: "Appointment not found" });
 
@@ -67,7 +89,7 @@ export const approveAppointment = async (req, res) => {
 
 // Decline appointment
 export const declineAppointment = async (req, res) => {
-  try {
+    try {
     const { id } = req.params;
 
     const appointment = await Appointment.findByIdAndUpdate(

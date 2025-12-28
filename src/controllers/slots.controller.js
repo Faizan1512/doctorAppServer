@@ -46,45 +46,56 @@ export const createSlotsFromRange = async (req, res) => {
   try {
     const { doctorId, date, startTime, endTime, interval = 15 } = req.body;
 
-    if (!doctorId || !date || !startTime || !endTime) {
-      return res.status(400).json({ status: 400, message: "Missing required fields" });
-    }
+    // 1. Normalize the date (set to midnight)
+    const normalizedDate = new Date(date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
 
-    const slots = [];
-
-    // Convert startTime and endTime to minutes
     const [startHour, startMinute] = startTime.split(":").map(Number);
     const [endHour, endMinute] = endTime.split(":").map(Number);
 
     let current = startHour * 60 + startMinute;
     const end = endHour * 60 + endMinute;
 
+    const newSlotsData = [];
+
     while (current + interval <= end) {
       const hour = Math.floor(current / 60);
       const minute = current % 60;
       const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 
-      // Check if slot already exists
-      const exists = await Slot.findOne({ doctorId, date, time: timeString });
-      if (!exists) {
-        const slot = await Slot.create({
-          doctorId,
-          date,
-          time: timeString,
-        });
-        slots.push(slot);
-      }
+      newSlotsData.push({
+        doctorId,
+        date: normalizedDate,
+        time: timeString,
+      });
 
-      current += interval; // move to next slot
+      current += interval;
+    }
+
+    // 2. Efficiently find which slots already exist in one query
+    const existingSlots = await Slot.find({
+      doctorId,
+      date: normalizedDate,
+      time: { $in: newSlotsData.map(s => s.time) }
+    });
+
+    const existingTimes = new Set(existingSlots.map(s => s.time));
+
+    // 3. Filter out the ones that already exist
+    const slotsToCreate = newSlotsData.filter(s => !existingTimes.has(s.time));
+
+    let createdSlots = [];
+    if (slotsToCreate.length > 0) {
+      createdSlots = await Slot.insertMany(slotsToCreate);
     }
 
     res.status(201).json({
       status: 201,
-      message: "Slots created successfully",
-      slots,
+      message: slotsToCreate.length > 0 ? "Slots created" : "No new slots to create",
+      slots: createdSlots,
     });
   } catch (error) {
-    console.error("Error creating slots:", error);
-    res.status(500).json({ status: 500, message: "Server error while creating slots" });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
