@@ -6,8 +6,7 @@ export const inngest = new Inngest({ id: "ecommerce-app" });
 
 // Sync new user
 const syncUser = inngest.createFunction(
-  { id: "sync-user" },
-  { event: "clerk/user.created" },
+  { id: "sync-user", triggers: [{ event: "clerk/user.created" }] },
   async ({ event }) => {
     await connectDB();
 
@@ -27,8 +26,7 @@ const syncUser = inngest.createFunction(
 
 // Delete user from DB
 const deleteUserFromDB = inngest.createFunction(
-  { id: "delete-user-from-db" },
-  { event: "clerk/user.deleted" },
+  { id: "delete-user-from-db", triggers: [{ event: "clerk/user.deleted" }] },
   async ({ event }) => {
     await connectDB();
 
