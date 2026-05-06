@@ -47,7 +47,7 @@ app.get("/api/health", (req, res) => res.status(200).json({ message: "Success" }
 // Serve frontend in production
 if (ENV.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../admin/dist")));
-  app.get("/*", (req, res) => {
+  app.get("/{*path}", (req, res) => {
     res.sendFile(path.join(__dirname, "../admin/dist/index.html"));
   });
 }
