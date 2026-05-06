@@ -19,13 +19,6 @@ import patientRoute from "./routes/patient.route.js"
 import doctorRoute from "./routes/doctor.route.js"
 import appointmentRoute from "./routes/appointment.route.js"
 import slotsRoute from "./routes/slots.route.js"
-
-
-
-
-
-
-
 const app = express();
 const __dirname = path.resolve();
 

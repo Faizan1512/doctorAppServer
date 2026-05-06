@@ -3,10 +3,15 @@ import { ENV } from "./env.js";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect("mongodb://localhost:27017/ecommerce");
-    console.log(`✅ Connected to MONGODB: ${conn.connection.host}`);
+    if (!ENV.DB_URL) {
+      throw new Error("Missing DB_URL environment variable");
+    }
+
+    const conn = await mongoose.connect(ENV.DB_URL);
+    console.log(`Connected to MONGODB: ${conn.connection.host}`);
   } catch (error) {
-    console.error("💥 MONGODB connection error");
+    console.error("MONGODB connection error");
+    console.error(error);
     process.exit(1); // exit code 1 means failure, 0 means success
   }
 };

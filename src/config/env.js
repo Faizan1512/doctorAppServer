@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 export const ENV = {
-  NODE_ENV: "development",
-  PORT: 3001,
-  DB_URL: "mongodb://localhost:27017/eccomerce",
-  JWT_SECRET: "my_super_secret_key",
-  JWT_EXPIRES_IN: "7d",
-  CLIENT_URL: "http://localhost:3000",
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: process.env.PORT || 3001,
+  DB_URL: process.env.DB_URL,
+  JWT_SECRET: process.env.JWT_SECRET,
+  CLIENT_URL: process.env.CLIENT_URL,
 };
