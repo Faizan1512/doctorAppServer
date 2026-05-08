@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import cors from "cors";
 import { createServer } from "http";
+import { Server } from "socket.io";
 import { serve } from "inngest/express";
 
 import { initWebRTC } from "./webrtc.js";
@@ -39,18 +40,19 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: "*",
     credentials: true,
   })
 );
+
 
 app.use(express.json());
 
 // ====================
 // SOCKET.IO / WEBRTC
 // ====================
-initWebRTC(httpServer, allowedOrigins);
-initChat(httpServer, allowedOrigins);
+// initWebRTC(httpServer, allowedOrigins);
+initChat(httpServer, "*");
 
 // ====================
 // INNGEST
@@ -90,7 +92,8 @@ if (ENV.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../admin/dist")));
   app.get("/{*path}", (req, res) => {
     res.sendFile(path.join(__dirname, "../admin/dist/index.html"));
-  });}
+  });
+}
 
 // ====================
 // START SERVER
@@ -102,11 +105,9 @@ const startServer = async () => {
     await connectDB();
 
     httpServer.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Railway Server running on ${PORT}`);
+      console.log(`🚀 Railway Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error("Server startup error:", error);
   }
 };
-
-startServer();

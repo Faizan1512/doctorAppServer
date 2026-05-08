@@ -2,11 +2,11 @@ import { Server } from "socket.io";
 
 export const initChat = (httpServer, allowedOrigins = ["http://localhost:3000"]) => {
   const io = new Server(httpServer, {
-    cors: {
-      origin: allowedOrigins,
-      methods: ["GET", "POST"],
-    },
-  });
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
   console.log("[INFO] Socket.IO chat server initialized");
 
